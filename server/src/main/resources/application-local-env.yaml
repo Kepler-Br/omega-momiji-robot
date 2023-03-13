@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    username: nonroot
+    password: nonroot
+    url: jdbc:postgresql://localhost:5429/gateway
