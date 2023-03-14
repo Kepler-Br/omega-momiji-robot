@@ -11,4 +11,9 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.postgresql:postgresql")
     implementation(kotlin("stdlib-jdk8"))
+
+    val gatewayApiVersion: String by project
+
+    implementation("com.momiji.gateway:omega-momiji-messenger-gateway-api:$gatewayApiVersion")
+    implementation(project(":${rootProject.name}-api"))
 }

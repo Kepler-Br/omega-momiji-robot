@@ -21,7 +21,7 @@ subprojects {
 
     dependencyManagement {
         imports {
-            val springCloudVersion = "2022.0.1"
+            val springCloudVersion: String by project
 
             mavenBom("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
             mavenBom(SpringBootPlugin.BOM_COORDINATES)
@@ -30,5 +30,6 @@ subprojects {
 
     repositories {
         mavenCentral()
+        mavenLocal()
     }
 }

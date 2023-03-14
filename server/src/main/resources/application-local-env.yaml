@@ -3,3 +3,7 @@ spring:
     username: nonroot
     password: nonroot
     url: jdbc:postgresql://localhost:5429/gateway
+
+momiji:
+  gateway:
+    url: http://localhost:8080
