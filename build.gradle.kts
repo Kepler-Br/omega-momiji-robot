@@ -26,6 +26,16 @@ subprojects {
             mavenBom("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
             mavenBom(SpringBootPlugin.BOM_COORDINATES)
         }
+
+        dependencies {
+            val apiVersion: String by project
+
+            dependencySet("com.momiji.api:$apiVersion") {
+                entry("omega-momiji-api")
+                entry("gateway-outbound-client-starter")
+                entry("neural-text-client-starter")
+            }
+        }
     }
 
     repositories {

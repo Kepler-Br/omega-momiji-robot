@@ -3,6 +3,8 @@ plugins {
 }
 
 dependencies {
+    annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
+
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
@@ -12,8 +14,7 @@ dependencies {
     implementation("org.postgresql:postgresql")
     implementation(kotlin("stdlib-jdk8"))
 
-    val gatewayApiVersion: String by project
-
-    implementation("com.momiji.gateway:omega-momiji-messenger-gateway-api:$gatewayApiVersion")
-    implementation(project(":${rootProject.name}-api"))
+    implementation("com.momiji.api:omega-momiji-api")
+    implementation("com.momiji.api:gateway-outbound-client-starter")
+    implementation("com.momiji.api:neural-text-client-starter")
 }

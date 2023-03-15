@@ -8,5 +8,18 @@ spring:
     url: jdbc:postgresql://localhost:5429/gateway
 
 momiji:
-  gateway:
-    url: http://localhost:8080
+  clients:
+    gateway:
+      stub: true
+      url: http://localhost:8080
+    neural:
+      text:
+        stub: true
+        url: http://localhost:8080
+
+logging:
+  level:
+    com.momiji.api: debug
+
+ro-bot:
+  context-size: 20
