@@ -18,7 +18,7 @@ class GatewayConfig {
 
     @Bean
     fun gatewayMessageSenderClient(
-        @Value("{momiji.gateway.url}") url: String,
+        @Value("\${momiji.gateway.url}") url: String,
         contract: Contract,
         decoder: Decoder,
         encoder: Encoder,
@@ -27,6 +27,6 @@ class GatewayConfig {
             .encoder(encoder)
             .decoder(decoder)
             .contract(contract)
-            .target(GatewayMessageSenderController::class.java, url)
+            .target(GatewayMessageSenderController::class.java, "$url/outbound")
     }
 }

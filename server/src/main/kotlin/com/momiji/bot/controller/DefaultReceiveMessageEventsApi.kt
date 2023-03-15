@@ -3,17 +3,15 @@ package com.momiji.bot.controller
 import com.momiji.bot.api.ReceiveMessageEventsApi
 import com.momiji.bot.api.model.NewMessageRequest
 import com.momiji.bot.service.NewMessageService
-import org.springframework.http.MediaType
-import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RestController
 
-@RequestMapping(
-    produces = [MediaType.APPLICATION_JSON_VALUE]
-)
+@RestController
 class DefaultReceiveMessageEventsApi(
     private val newMessageService: NewMessageService,
 ) : ReceiveMessageEventsApi {
 
-    override fun newMessage(request: NewMessageRequest) {
+    override fun newMessage(@RequestBody request: NewMessageRequest) {
         newMessageService.newMessage(request)
     }
 }

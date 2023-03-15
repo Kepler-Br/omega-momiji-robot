@@ -9,4 +9,9 @@ data class NewMessageRequest(
     val chatId: String,
     @JsonProperty("message_id")
     val messageId: String,
+    /**
+     * True if message was updated in DB. Not a new message
+     */
+    @JsonProperty("is_updated")
+    val isUpdated: Boolean,
 )
