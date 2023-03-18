@@ -4,7 +4,8 @@ enum class MediaType {
     STICKER,
     AUDIO,
     VOICE,
-    PICTURE,
-    MUSIC,
+    PHOTO,
     VIDEO,
+    GIF,
+    VIDEO_NOTE,
 }

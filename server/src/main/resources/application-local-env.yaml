@@ -10,7 +10,7 @@ spring:
 momiji:
   clients:
     gateway:
-      stub: true
+      stub: false
       url: http://localhost:8080
     neural:
       text:
