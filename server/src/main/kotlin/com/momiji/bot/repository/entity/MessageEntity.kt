@@ -16,6 +16,7 @@ data class MessageEntity(
     var chatId: Long? = null,
     var userId: Long? = null,
     var createdAt: LocalDateTime? = null,
+    var replyToMessageNativeId: String? = null,
     var frontend: String,
     var nativeId: String,
 )
