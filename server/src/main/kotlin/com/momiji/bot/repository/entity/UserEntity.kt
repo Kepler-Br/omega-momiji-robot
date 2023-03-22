@@ -5,7 +5,10 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 
 
-@Table("users")
+@Table(
+    name = "users",
+    schema = "gateway",
+)
 data class UserEntity(
     @Id
     var id: Long? = null,

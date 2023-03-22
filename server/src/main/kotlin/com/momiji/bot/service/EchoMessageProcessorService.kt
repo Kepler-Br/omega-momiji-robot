@@ -7,9 +7,7 @@ import com.momiji.bot.repository.ChatRepository
 import com.momiji.bot.repository.MessageRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Service
 
-@Service
 class EchoMessageProcessorService(
     private val messageRepository: MessageRepository,
     private val chatRepository: ChatRepository,

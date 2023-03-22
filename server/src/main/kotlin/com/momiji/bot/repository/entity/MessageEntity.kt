@@ -6,7 +6,10 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 
 
-@Table("messages")
+@Table(
+    name = "messages",
+    schema = "gateway",
+)
 data class MessageEntity(
     @Id
     var id: Long? = null,
