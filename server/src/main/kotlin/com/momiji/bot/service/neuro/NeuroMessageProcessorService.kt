@@ -79,13 +79,27 @@ class NeuroMessageProcessorService(
                 chatNativeId = chatId,
                 limit = contextSize,
             )
-        // TODO: Move message mapper to neural text
-        val mapper = MessageMapper()
-        val mappedMessages = mapper.mapAndSaveIds(messages, nameToMask = chatConfig.username)
+
+        val maskedMessages = messages.map {
+            val fullname = if (it.fullname == chatConfig.username) {
+                it.fullname.hashCode().toString(16).trimStart('-')
+            } else {
+                it.fullname
+            }
+
+            TextGenerationMessage(
+                messageType = MessageType.TEXT,
+                // TODO: Ideally, should never be null.
+                content = it.text ?: "Unknown",
+                author = fullname,
+                messageId = it.nativeId,
+                replyToMessageId = it.replyToMessageNativeId,
+            )
+        }
 
         gatewayMessageSenderController.sendTypingAction(frontend = frontend, chatId = chatId)
 
-        val generatedMessages = generateMessage(messages = mappedMessages, chatConfig = chatConfig)
+        val generatedMessages = generateMessage(messages = maskedMessages, chatConfig = chatConfig)
         val filteredMessages = filterFirstByAuthor(generatedMessages, chatConfig.username)
 
         for (message in filteredMessages) {
@@ -96,7 +110,7 @@ class NeuroMessageProcessorService(
                     frontend = frontend,
                     text = message.content,
                     chatId = chatId,
-                    replyToMessageId = mapper.mapId(message.replyToMessageId),
+                    replyToMessageId = message.replyToMessageId,
                 )
             )
         }
