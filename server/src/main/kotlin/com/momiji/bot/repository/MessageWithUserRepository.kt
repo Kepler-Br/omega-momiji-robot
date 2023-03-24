@@ -19,9 +19,9 @@ interface MessageWithUserRepository : CrudRepository<MessageWithUserEntity, Unit
     @Query(
         """
             select m.text, m.media_link, u.fullname, m.media_type, m.native_id, m.reply_to_message_native_id
-            from messages m
-                     inner join chats c on c.id = m.chat_id
-                     inner join users u on m.user_id = u.id
+            from gateway.messages m
+                     inner join gateway.chats c on c.id = m.chat_id
+                     inner join gateway.users u on m.user_id = u.id
             where m.frontend = :frontend
               and m.native_id = :nativeId
               and c.native_id = :chatNativeId
