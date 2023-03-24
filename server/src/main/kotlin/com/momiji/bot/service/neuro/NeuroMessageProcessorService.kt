@@ -13,8 +13,6 @@ import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
 import com.momiji.bot.service.MessageProcessorService
-import io.micrometer.observation.Observation
-import io.micrometer.observation.ObservationRegistry
 import java.time.LocalDateTime
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -37,7 +35,6 @@ class NeuroMessageProcessorService(
     @Value("\${ro-bot.context-size:10}")
     private val contextSize: Int,
     private val textGenerationController: TextGenerationController,
-    private val observationRegistry: ObservationRegistry,
 ) : MessageProcessorService {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
     private val threadExecutor = Executors.newFixedThreadPool(5)
@@ -49,23 +46,19 @@ class NeuroMessageProcessorService(
             return
         }
 
+        // TODO: Read about propagating TraceID to task. See: LazyTraceThreadPoolTaskExecutor
         threadExecutor.submit {
-            // TODO: TraceID and SpanID are not passed with feign client calls
-            val observation = Observation.createNotStarted("newMessage", observationRegistry)
-
-            observation.observe {
-                try {
-                    process(
-                        frontend = request.frontend,
-                        chatId = request.chatId,
-                        messageId = request.messageId
-                    )
-                } catch (ex: RuntimeException) {
-                    logger.error(
-                        "Exception has occurred during processing message in thread executor",
-                        ex
-                    )
-                }
+            try {
+                process(
+                    frontend = request.frontend,
+                    chatId = request.chatId,
+                    messageId = request.messageId
+                )
+            } catch (ex: RuntimeException) {
+                logger.error(
+                    "Exception has occurred during processing message in thread executor",
+                    ex
+                )
             }
         }
     }
@@ -79,7 +72,6 @@ class NeuroMessageProcessorService(
             return
         }
 
-
         val messages =
             messageWithUserRepository.getByFrontendAndNativeIdAndChatNativeIdOrderByIdDescLimit(
                 frontend = frontend,
@@ -87,6 +79,7 @@ class NeuroMessageProcessorService(
                 chatNativeId = chatId,
                 limit = contextSize,
             )
+        // TODO: Move message mapper to neural text
         val mapper = MessageMapper()
         val mappedMessages = mapper.mapAndSaveIds(messages, nameToMask = chatConfig.username)
 
