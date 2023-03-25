@@ -23,15 +23,13 @@ interface MessageWithUserRepository : CrudRepository<MessageWithUserEntity, Unit
                      inner join gateway.chats c on c.id = m.chat_id
                      inner join gateway.users u on m.user_id = u.id
             where m.frontend = :frontend
-              and m.native_id = :nativeId
               and c.native_id = :chatNativeId
             order by m.id desc
             limit :limit;
         """
     )
-    fun getByFrontendAndNativeIdAndChatNativeIdOrderByIdDescLimit(
+    fun getByFrontendAndChatNativeIdOrderByIdDescLimit(
         frontend: String,
-        nativeId: String,
         chatNativeId: String,
         limit: Int
     ): List<MessageWithUserEntity>

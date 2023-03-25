@@ -5,14 +5,13 @@ import com.momiji.api.common.model.ResponseStatus
 import com.momiji.api.gateway.outbound.GatewayMessageSenderController
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
 import com.momiji.api.neural.text.TextGenerationController
-import com.momiji.api.neural.text.model.GenerationParams
-import com.momiji.api.neural.text.model.HistoryRequest
+import com.momiji.api.neural.text.model.*
 import com.momiji.api.neural.text.model.Message
-import com.momiji.api.neural.text.model.MessageType
 import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
 import com.momiji.bot.service.MessageProcessorService
+import feign.FeignException
 import java.time.LocalDateTime
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -73,9 +72,8 @@ class NeuroMessageProcessorService(
         }
 
         val messages =
-            messageWithUserRepository.getByFrontendAndNativeIdAndChatNativeIdOrderByIdDescLimit(
+            messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
                 frontend = frontend,
-                nativeId = messageId,
                 chatNativeId = chatId,
                 limit = contextSize,
             )
@@ -204,7 +202,7 @@ class NeuroMessageProcessorService(
 
             return when (response.status) {
                 ResponseStatus.OK -> {
-                    response.messages
+                    response.messages!!
                 }
 
                 ResponseStatus.TOO_EARLY -> {
