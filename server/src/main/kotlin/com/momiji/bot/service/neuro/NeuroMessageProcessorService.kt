@@ -6,12 +6,10 @@ import com.momiji.api.gateway.outbound.GatewayMessageSenderController
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
 import com.momiji.api.neural.text.TextGenerationController
 import com.momiji.api.neural.text.model.*
-import com.momiji.api.neural.text.model.Message
 import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
 import com.momiji.bot.service.MessageProcessorService
-import feign.FeignException
 import java.time.LocalDateTime
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -79,7 +77,9 @@ class NeuroMessageProcessorService(
             )
 
         val maskedMessages = messages.map {
-            val fullname = if (it.fullname == chatConfig.username) {
+            val fullname = if (it.userNativeId == "SELF") {
+                chatConfig.username
+            } else if (it.fullname == chatConfig.username) {
                 it.fullname.hashCode().toString(16).trimStart('-')
             } else {
                 it.fullname
@@ -165,7 +165,6 @@ class NeuroMessageProcessorService(
         messages: List<TextGenerationMessage>,
         chatConfig: ChatGenerationConfigEntity,
     ): List<TextGenerationMessage> {
-        val promptId = UUID.randomUUID()
         val seed = Random.nextLong()
 
         val params = GenerationParams(
@@ -180,57 +179,52 @@ class NeuroMessageProcessorService(
             badWords = listOf(" [", "[", "@", " @"),
         )
 
-        textGenerationController.requestGenerationFromHistory(
+        val response = textGenerationController.requestGenerationFromHistory(
             content = HistoryRequest(
                 messageType = MessageType.TEXT,
                 history = messages,
                 generationParams = params,
                 promptAuthor = chatConfig.username,
-            ),
-            promptId = promptId,
+            )
         )
 
-        return getGeneratedMessages(promptId)
+        return getGeneratedMessages(response.taskId!!)
     }
 
     private fun getGeneratedMessages(promptId: UUID): List<TextGenerationMessage> {
-        val attempts = 100
-        val sleep = 300L
+        val response =
+            textGenerationController.getGeneratedFromHistory(promptId = promptId, async = false)
 
-        for (i in (0..attempts)) {
-            val response = textGenerationController.getGeneratedFromHistory(promptId = promptId)
-
-            return when (response.status) {
-                ResponseStatus.OK -> {
-                    response.messages!!
-                }
-
-                ResponseStatus.TOO_EARLY -> {
-                    Thread.sleep(sleep)
-                    continue
-                }
-
-                ResponseStatus.BAD_REQUEST -> {
-                    throw RuntimeException("Text generation controller returned error BAD_REQUEST: ${response.errorMessage}")
-                }
-
-                ResponseStatus.INTERNAL_SERVER_ERROR -> {
-                    throw RuntimeException("Text generation controller returned error INTERNAL_SERVER_ERROR: ${response.errorMessage}")
-                }
-
-                ResponseStatus.NOT_FOUND -> {
-                    throw RuntimeException("Prompt with ID $promptId was not found. This is a bug on text generation service.")
-                }
+        return when (response.status) {
+            ResponseStatus.OK -> {
+                response.messages!!
             }
-        }
 
-        throw RuntimeException("Cannot get generation result")
+            ResponseStatus.BAD_REQUEST -> {
+                throw RuntimeException("Text generation controller returned error BAD_REQUEST: ${response.errorMessage}")
+            }
+
+            ResponseStatus.INTERNAL_SERVER_ERROR -> {
+                throw RuntimeException("Text generation controller returned error INTERNAL_SERVER_ERROR: ${response.errorMessage}")
+            }
+
+            ResponseStatus.NOT_FOUND -> {
+                throw RuntimeException("Prompt with ID $promptId was not found. This is a bug on text generation service.")
+            }
+
+            ResponseStatus.TOO_MANY_REQUESTS -> {
+                throw RuntimeException("Too many requests.")
+            }
+
+            else ->
+                throw RuntimeException("Unexpected response status: ${response.status}")
+        }
     }
 
     private fun filterFirstByAuthor(
-        generatedMessages: List<Message>,
+        generatedMessages: List<TextGenerationMessage>,
         author: String,
-    ): List<Message> {
+    ): List<TextGenerationMessage> {
         val filteredMessages = mutableListOf<TextGenerationMessage>()
 
         for (message in generatedMessages) {
