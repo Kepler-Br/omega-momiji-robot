@@ -1,6 +1,5 @@
 package com.momiji.bot.service.neuro
 
-import com.momiji.api.bot.model.NewMessageRequest
 import com.momiji.api.common.model.ResponseStatus
 import com.momiji.api.gateway.outbound.GatewayMessageSenderController
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
@@ -9,10 +8,10 @@ import com.momiji.api.neural.text.model.*
 import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
-import com.momiji.bot.service.MessageProcessorService
+import com.momiji.bot.service.DispatchedMessage
+import com.momiji.bot.service.MessageReceiver
 import java.time.LocalDateTime
 import java.util.UUID
-import java.util.concurrent.Executors
 import kotlin.random.Random
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -25,43 +24,22 @@ import com.momiji.api.neural.text.model.Message as TextGenerationMessage
 
 
 @Service
-class NeuroMessageProcessorService(
+class NeuroMessageReceiver(
     private val messageWithUserRepository: MessageWithUserRepository,
     private val chatGenerationConfigRepository: ChatGenerationConfigRepository,
     private val gatewayMessageSenderController: GatewayMessageSenderController,
     @Value("\${ro-bot.context-size:10}")
     private val contextSize: Int,
     private val textGenerationController: TextGenerationController,
-) : MessageProcessorService {
+) : MessageReceiver {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
-    private val threadExecutor = Executors.newFixedThreadPool(5)
 
-    override fun process(request: NewMessageRequest) {
-        if (request.isUpdated) {
-            logger.trace("Not a new message. Skipping.")
-
-            return
-        }
-
-        // TODO: Read about propagating TraceID to task. See: LazyTraceThreadPoolTaskExecutor
-        threadExecutor.submit {
-            try {
-                process(
-                    frontend = request.frontend,
-                    chatId = request.chatId,
-                    messageId = request.messageId
-                )
-            } catch (ex: RuntimeException) {
-                logger.error(
-                    "Exception has occurred during processing message in thread executor",
-                    ex
-                )
-            }
-        }
-    }
-
-    private fun process(frontend: String, chatId: String, messageId: String) {
-        val chatConfig = getChatConfig(frontend = frontend, chatNativeId = chatId)
+    override fun process(dispatchedMessage: DispatchedMessage) {
+        val chatConfig =
+            getChatConfig(
+                frontend = dispatchedMessage.frontend,
+                chatNativeId = dispatchedMessage.chat.nativeId
+            )
 
         if (Random.nextFloat() > chatConfig.replyChance) {
             logger.trace("Not hitting a replyChance of ${chatConfig.replyChance}. Skipping")
@@ -70,10 +48,10 @@ class NeuroMessageProcessorService(
         }
 
         val messages = messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
-                frontend = frontend,
-                chatNativeId = chatId,
-                limit = contextSize,
-            )
+            frontend = dispatchedMessage.frontend,
+            chatNativeId = dispatchedMessage.chat.nativeId,
+            limit = contextSize,
+        )
 
         val maskedMessages = messages.map {
             val fullname = if (it.userNativeId == "SELF") {
@@ -94,19 +72,25 @@ class NeuroMessageProcessorService(
             )
         }
 
-        gatewayMessageSenderController.sendTypingAction(frontend = frontend, chatId = chatId)
+        gatewayMessageSenderController.sendTypingAction(
+            frontend = dispatchedMessage.frontend,
+            chatId = dispatchedMessage.chat.nativeId
+        )
 
         val generatedMessages = generateMessage(messages = maskedMessages, chatConfig = chatConfig)
         val filteredMessages = filterFirstByAuthor(generatedMessages, chatConfig.username)
 
         for (message in filteredMessages) {
-            gatewayMessageSenderController.sendTypingAction(frontend = frontend, chatId = chatId)
+            gatewayMessageSenderController.sendTypingAction(
+                frontend = dispatchedMessage.frontend,
+                chatId = dispatchedMessage.chat.nativeId
+            )
 
             gatewayMessageSenderController.sendText(
                 request = SendTextMessageRequest(
-                    frontend = frontend,
+                    frontend = dispatchedMessage.frontend,
                     text = message.content,
-                    chatId = chatId,
+                    chatId = dispatchedMessage.chat.nativeId,
                     replyToMessageId = message.replyToMessageId,
                 )
             )
