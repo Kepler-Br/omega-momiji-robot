@@ -69,8 +69,7 @@ class NeuroMessageProcessorService(
             return
         }
 
-        val messages =
-            messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
+        val messages = messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
                 frontend = frontend,
                 chatNativeId = chatId,
                 limit = contextSize,
@@ -210,10 +209,6 @@ class NeuroMessageProcessorService(
 
             ResponseStatus.NOT_FOUND -> {
                 throw RuntimeException("Prompt with ID $promptId was not found. This is a bug on text generation service.")
-            }
-
-            ResponseStatus.TOO_MANY_REQUESTS -> {
-                throw RuntimeException("Too many requests.")
             }
 
             else ->
