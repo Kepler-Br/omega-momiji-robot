@@ -1,8 +1,8 @@
 package com.momiji.bot.criteria
 
-import com.momiji.bot.service.DispatchedMessage
+import com.momiji.bot.service.data.DispatchedMessage
 
-class NotACommandCriteria : CriteriaChecker {
+class NotACommand : CriteriaChecker {
     override fun check(message: DispatchedMessage): Boolean {
         return message.command == null
     }

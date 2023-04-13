@@ -5,29 +5,14 @@ import com.momiji.bot.criteria.CriteriaChecker
 import com.momiji.bot.repository.ChatRepository
 import com.momiji.bot.repository.MessageRepository
 import com.momiji.bot.repository.UserRepository
-import com.momiji.bot.repository.entity.ChatEntity
-import com.momiji.bot.repository.entity.MessageEntity
-import com.momiji.bot.repository.entity.UserEntity
+import com.momiji.bot.service.data.DispatchedMessage
+import com.momiji.bot.service.data.MessageCommand
 import java.util.concurrent.Executors
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 
-
-data class MessageCommand(
-    val command: String,
-    val arguments: List<String>,
-)
-
-data class DispatchedMessage(
-    val user: UserEntity,
-    val chat: ChatEntity,
-    val message: MessageEntity,
-    val command: MessageCommand?,
-    val isUpdated: Boolean,
-    val frontend: String,
-)
 
 typealias TargetCallable = (DispatchedMessage) -> Unit
 typealias TargetPair = Pair<TargetCallable, List<CriteriaChecker>>
@@ -51,12 +36,12 @@ class MessageDispatcher(
             text == null
             || (!text.startsWith('/') && text.length > 1)
         ) {
-            return null;
+            return null
         }
 
         val splitted = text.split(' ')
 
-        val command = splitted[0]
+        val command = splitted[0].removePrefix("/")
 
         val arguments = if (splitted.size > 1) {
             splitted.subList(1, splitted.size)

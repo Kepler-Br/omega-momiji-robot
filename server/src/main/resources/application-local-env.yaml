@@ -25,3 +25,7 @@ logging:
 
 ro-bot:
   context-size: 20
+  superusers:
+    frontend:
+      telegram:
+        - me

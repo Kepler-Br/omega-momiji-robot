@@ -8,17 +8,12 @@ import com.momiji.api.neural.text.model.*
 import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
-import com.momiji.bot.service.DispatchedMessage
-import com.momiji.bot.service.MessageReceiver
-import java.time.LocalDateTime
+import com.momiji.bot.service.data.DispatchedMessage
 import java.util.UUID
 import kotlin.random.Random
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.dao.DuplicateKeyException
-import org.springframework.dao.EmptyResultDataAccessException
-import org.springframework.data.relational.core.conversion.DbActionExecutionException
 import org.springframework.stereotype.Service
 import com.momiji.api.neural.text.model.Message as TextGenerationMessage
 
@@ -28,17 +23,21 @@ class NeuroMessageReceiver(
     private val messageWithUserRepository: MessageWithUserRepository,
     private val chatGenerationConfigRepository: ChatGenerationConfigRepository,
     private val gatewayMessageSenderController: GatewayMessageSenderController,
+    private val chatConfigService: ChatConfigService,
     @Value("\${ro-bot.context-size:10}")
     private val contextSize: Int,
     private val textGenerationController: TextGenerationController,
-) : MessageReceiver {
+) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
-    override fun process(dispatchedMessage: DispatchedMessage) {
+    fun process(dispatchedMessage: DispatchedMessage) {
+        val chatNativeId = dispatchedMessage.chat.nativeId
+        val frontend = dispatchedMessage.frontend
+
         val chatConfig =
-            getChatConfig(
-                frontend = dispatchedMessage.frontend,
-                chatNativeId = dispatchedMessage.chat.nativeId
+            chatConfigService.getChatConfig(
+                frontend = frontend,
+                chatNativeId = chatNativeId
             )
 
         if (Random.nextFloat() > chatConfig.replyChance) {
@@ -48,8 +47,8 @@ class NeuroMessageReceiver(
         }
 
         val messages = messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
-            frontend = dispatchedMessage.frontend,
-            chatNativeId = dispatchedMessage.chat.nativeId,
+            frontend = frontend,
+            chatNativeId = chatNativeId,
             limit = contextSize,
         )
 
@@ -73,8 +72,8 @@ class NeuroMessageReceiver(
         }
 
         gatewayMessageSenderController.sendTypingAction(
-            frontend = dispatchedMessage.frontend,
-            chatId = dispatchedMessage.chat.nativeId
+            frontend = frontend,
+            chatId = chatNativeId
         )
 
         val generatedMessages = generateMessage(messages = maskedMessages, chatConfig = chatConfig)
@@ -82,65 +81,18 @@ class NeuroMessageReceiver(
 
         for (message in filteredMessages) {
             gatewayMessageSenderController.sendTypingAction(
-                frontend = dispatchedMessage.frontend,
-                chatId = dispatchedMessage.chat.nativeId
+                frontend = frontend,
+                chatId = chatNativeId
             )
 
             gatewayMessageSenderController.sendText(
                 request = SendTextMessageRequest(
-                    frontend = dispatchedMessage.frontend,
+                    frontend = frontend,
                     text = message.content,
-                    chatId = dispatchedMessage.chat.nativeId,
+                    chatId = chatNativeId,
                     replyToMessageId = message.replyToMessageId,
                 )
             )
-        }
-    }
-
-    private fun getChatConfig(frontend: String, chatNativeId: String): ChatGenerationConfigEntity {
-        return try {
-            // Best case scenario: config already exists in DB
-            chatGenerationConfigRepository.getByFrontendAndChatNativeId(
-                frontend = frontend,
-                chatNativeId = chatNativeId
-            )
-        } catch (ex: EmptyResultDataAccessException) {
-            try {
-                // Good case scenario: config does not exist, and we need to save it
-                chatGenerationConfigRepository.save(
-                    ChatGenerationConfigEntity(
-                        createdAt = LocalDateTime.now(),
-                        frontend = frontend,
-                        chatNativeId = chatNativeId,
-                        username = "Default",
-                        maxNewTokens = 100,
-                        numBeams = 5,
-                        noRepeatNgramSize = 0,
-                        temperature = 0.8f,
-                        topP = 0.95f,
-                        topK = 50,
-                        repetitionPenalty = 5.0f,
-                        replyChance = 0.2f,
-                    )
-                )
-            } catch (ex: DbActionExecutionException) {
-                return when (ex.cause) {
-                    // "OK" case scenario: config was somehow already saved in DB by other thread before us.
-                    // See "Race condition"
-                    // Try to retrieve it
-                    is DuplicateKeyException -> {
-                        chatGenerationConfigRepository.getByFrontendAndChatNativeId(
-                            frontend = frontend,
-                            chatNativeId = chatNativeId
-                        )
-                    }
-
-                    else -> {
-                        // Worst case scenario: unexpected error happened
-                        throw ex
-                    }
-                }
-            }
         }
     }
 

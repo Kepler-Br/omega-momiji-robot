@@ -4,6 +4,7 @@ import com.momiji.api.gateway.outbound.GatewayMessageSenderController
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
 import com.momiji.bot.repository.ChatRepository
 import com.momiji.bot.repository.MessageRepository
+import com.momiji.bot.service.data.DispatchedMessage
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
