@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository
 interface MessageWithUserRepository : CrudRepository<MessageWithUserEntity, Unit> {
     @Query(
         """
-            select m.text, m.media_link, u.fullname, m.media_type, m.native_id, m.reply_to_message_native_id, u.nativeId as user_native_id
+            select m.text, m.media_link, u.fullname, m.media_type, m.native_id, m.reply_to_message_native_id, u.native_id as user_native_id
             from gateway.messages m
                      inner join gateway.chats c on c.id = m.chat_id
                      inner join gateway.users u on m.user_id = u.id
@@ -33,7 +33,7 @@ interface MessageWithUserRepository : CrudRepository<MessageWithUserEntity, Unit
                    m.media_type,
                    m.native_id,
                    m.reply_to_message_native_id,
-                   u.nativeId as user_native_id
+                   u.native_id as user_native_id
             from gateway.messages m
                      inner join gateway.chats c on c.id = m.chat_id
                      inner join gateway.users u on m.user_id = u.id

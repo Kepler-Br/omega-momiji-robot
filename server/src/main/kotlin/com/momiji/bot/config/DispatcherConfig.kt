@@ -10,15 +10,14 @@ import javax.annotation.PostConstruct
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-class DispatcherConfig {
+class DispatcherConfig(
+    val neuroMessageProcessorService: NeuroMessageReceiver,
+    val neuroMessageCommandsReceiver: NeuroMessageCommandsReceiver,
+    val messageDispatcher: MessageDispatcher,
+) {
 
     @PostConstruct
-    fun asd(
-        neuroMessageProcessorService: NeuroMessageReceiver,
-        neuroMessageCommandsReceiver: NeuroMessageCommandsReceiver,
-        messageDispatcher: MessageDispatcher,
-    ) {
-
+    fun post() {
         messageDispatcher.register(
             listOf(NotACommand(), NotAnUpdatedMessage()),
             neuroMessageProcessorService::process

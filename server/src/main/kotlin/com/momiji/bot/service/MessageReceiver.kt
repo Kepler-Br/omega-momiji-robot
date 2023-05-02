@@ -1,7 +1,7 @@
 package com.momiji.bot.service
 
-import com.momiji.bot.service.data.DispatchedMessage
+import com.momiji.bot.service.data.DispatchedMessageEvent
 
 interface MessageReceiver {
-    fun process(dispatchedMessage: DispatchedMessage)
+    fun process(dispatchedMessageEvent: DispatchedMessageEvent)
 }

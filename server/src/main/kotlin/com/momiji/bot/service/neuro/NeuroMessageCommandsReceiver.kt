@@ -3,12 +3,10 @@ package com.momiji.bot.service.neuro
 import com.momiji.bot.config.SuperUserConfigurationProperties
 import com.momiji.bot.repository.entity.ChatEntity
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
-import com.momiji.bot.repository.entity.MessageEntity
 import com.momiji.bot.service.GatewayService
 import com.momiji.bot.service.data.DispatchedMessage
+import com.momiji.bot.service.data.DispatchedMessageEvent
 import com.momiji.bot.service.data.MessageCommand
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 
@@ -23,16 +21,12 @@ class NeuroMessageCommandsReceiver(
     private val argumentIsNotAFloat: String = "Аргумент не дробное число"
 
 
-    fun process(dispatchedMessage: DispatchedMessage) {
-        val command = dispatchedMessage.command!!
+    fun process(dispatchedMessageEvent: DispatchedMessageEvent) {
+        val command = dispatchedMessageEvent.command!!
 
-        if (command.arguments.isEmpty()) {
-            return
-        }
-
-        val frontend = dispatchedMessage.frontend
-        val chat = dispatchedMessage.chat
-        val message = dispatchedMessage.message
+        val frontend = dispatchedMessageEvent.frontend
+        val chat = dispatchedMessageEvent.chat
+        val message = dispatchedMessageEvent.message
 
         // Commands that does not require admin permissions
         when (command.command) {
@@ -47,9 +41,13 @@ class NeuroMessageCommandsReceiver(
             }
         }
 
+        if (command.arguments.isEmpty()) {
+            return
+        }
+
         // Commands that require admin permissions
         val isPermitted = userIsAdminOrSuperuser(
-            userNativeId = dispatchedMessage.user.nativeId,
+            userNativeId = dispatchedMessageEvent.user.nativeId,
             frontend = frontend,
             chatNativeId = chat.nativeId
         )
@@ -145,7 +143,7 @@ class NeuroMessageCommandsReceiver(
 
     private fun whois(
         chat: ChatEntity,
-        message: MessageEntity,
+        message: DispatchedMessage,
         frontend: String
     ) {
         val config =
@@ -161,7 +159,7 @@ class NeuroMessageCommandsReceiver(
 
     private fun params(
         chat: ChatEntity,
-        message: MessageEntity,
+        message: DispatchedMessage,
         frontend: String
     ) {
         val config =
@@ -179,7 +177,7 @@ class NeuroMessageCommandsReceiver(
 
     private fun updateConfig(
         chat: ChatEntity,
-        message: MessageEntity,
+        message: DispatchedMessage,
         frontend: String,
         config: ChatGenerationConfigEntity,
         onExceptionMessage: String,
@@ -210,7 +208,7 @@ class NeuroMessageCommandsReceiver(
     private fun chme(
         command: MessageCommand,
         chat: ChatEntity,
-        message: MessageEntity,
+        message: DispatchedMessage,
         frontend: String,
         config: ChatGenerationConfigEntity,
     ) {

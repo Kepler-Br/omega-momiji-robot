@@ -8,8 +8,8 @@ import com.momiji.api.neural.text.model.*
 import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
-import com.momiji.bot.service.data.DispatchedMessage
-import java.util.UUID
+import com.momiji.bot.service.data.DispatchedMessageEvent
+import java.util.*
 import kotlin.random.Random
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -30,9 +30,9 @@ class NeuroMessageReceiver(
 ) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
-    fun process(dispatchedMessage: DispatchedMessage) {
-        val chatNativeId = dispatchedMessage.chat.nativeId
-        val frontend = dispatchedMessage.frontend
+    fun process(dispatchedMessageEvent: DispatchedMessageEvent) {
+        val chatNativeId = dispatchedMessageEvent.chat.nativeId
+        val frontend = dispatchedMessageEvent.frontend
 
         val chatConfig =
             chatConfigService.getChatConfig(
@@ -40,7 +40,10 @@ class NeuroMessageReceiver(
                 chatNativeId = chatNativeId
             )
 
-        if (Random.nextFloat() > chatConfig.replyChance) {
+        if (
+            dispatchedMessageEvent.message.replyTo?.user?.nativeId != "SELF"
+            && Random.nextFloat() > chatConfig.replyChance
+        ) {
             logger.trace("Not hitting a replyChance of ${chatConfig.replyChance}. Skipping")
 
             return
@@ -50,7 +53,7 @@ class NeuroMessageReceiver(
             frontend = frontend,
             chatNativeId = chatNativeId,
             limit = contextSize,
-        )
+        ).reversed()
 
         val maskedMessages = messages.map {
             val fullname = if (it.userNativeId == "SELF") {

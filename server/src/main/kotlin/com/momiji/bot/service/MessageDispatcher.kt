@@ -6,6 +6,8 @@ import com.momiji.bot.repository.ChatRepository
 import com.momiji.bot.repository.MessageRepository
 import com.momiji.bot.repository.UserRepository
 import com.momiji.bot.service.data.DispatchedMessage
+import com.momiji.bot.service.data.DispatchedMessageEvent
+import com.momiji.bot.service.data.DispatchedRepliedMessage
 import com.momiji.bot.service.data.MessageCommand
 import java.util.concurrent.Executors
 import org.slf4j.Logger
@@ -14,7 +16,7 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 
 
-typealias TargetCallable = (DispatchedMessage) -> Unit
+typealias TargetCallable = (DispatchedMessageEvent) -> Unit
 typealias TargetPair = Pair<TargetCallable, List<CriteriaChecker>>
 
 @Service
@@ -59,7 +61,7 @@ class MessageDispatcher(
         )
     }
 
-    private fun getDispatchedMessage(request: NewMessageRequest): DispatchedMessage {
+    private fun getDispatchedMessage(request: NewMessageRequest): DispatchedMessageEvent {
         val message = messageRepository.getByFrontendAndNativeIdAndChatNativeId(
             frontend = request.frontend,
             nativeId = request.messageId,
@@ -68,10 +70,44 @@ class MessageDispatcher(
         val user = userRepository.findByIdOrNull(message.userId!!)!!
         val chat = chatRepository.findByIdOrNull(message.chatId!!)!!
 
-        return DispatchedMessage(
+        val replyToMessage = if (message.replyToMessageNativeId != null) {
+            val replyTo = messageRepository.findByFrontendAndNativeIdAndChatNativeId(
+                frontend = request.frontend,
+                nativeId = message.replyToMessageNativeId!!,
+                chatNativeId = request.chatId
+            )
+
+            if (replyTo != null) {
+                val replyToUser = userRepository.findByIdOrNull(replyTo.userId!!)!!
+
+                DispatchedRepliedMessage(
+                    id = replyTo.id,
+                    text = replyTo.text,
+                    mediaLink = replyTo.mediaLink,
+                    mediaType = replyTo.mediaType,
+                    user = replyToUser,
+                    replyToNativeId = replyTo.replyToMessageNativeId,
+                    nativeId = replyTo.nativeId,
+                )
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+
+        return DispatchedMessageEvent(
             user = user,
             chat = chat,
-            message = message,
+            message = DispatchedMessage(
+                id = message.id,
+                text = message.text,
+                mediaLink = message.mediaLink,
+                mediaType = message.mediaType,
+                user = user,
+                replyTo = replyToMessage,
+                nativeId = message.nativeId,
+            ),
             command = extractCommand(message.text),
             isUpdated = request.isUpdated,
             frontend = request.frontend,
@@ -97,6 +133,7 @@ class MessageDispatcher(
 
                     if (result) {
                         callable(message)
+                        break
                     }
                 }
             } catch (ex: RuntimeException) {
