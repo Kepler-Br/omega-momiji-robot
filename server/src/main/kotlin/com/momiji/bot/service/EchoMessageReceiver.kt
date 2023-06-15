@@ -1,6 +1,6 @@
 package com.momiji.bot.service
 
-import com.momiji.api.gateway.outbound.GatewayMessageSenderController
+import com.momiji.api.gateway.outbound.GatewayMessageSenderClient
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
 import com.momiji.bot.repository.MessageRepository
 import com.momiji.bot.service.data.DispatchedMessageEvent
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 @Service
 class EchoMessageReceiver(
     private val messageRepository: MessageRepository,
-    private val gatewayMessageSenderController: GatewayMessageSenderController,
+    private val gatewayMessageSenderClient: GatewayMessageSenderClient,
 ) : MessageReceiver {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
@@ -29,7 +29,7 @@ class EchoMessageReceiver(
             chatNativeId = dispatchedMessageEvent.chat.nativeId
         )
 
-        gatewayMessageSenderController.sendText(
+        gatewayMessageSenderClient.sendText(
             SendTextMessageRequest(
                 frontend = dispatchedMessageEvent.frontend,
                 text = message.text ?: message.mediaType?.toString() ?: "Echo",

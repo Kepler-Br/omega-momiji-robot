@@ -3,14 +3,14 @@ package com.momiji.bot.service
 import com.momiji.api.common.model.BaseResponse
 import com.momiji.api.common.model.ChatAdminsResponse
 import com.momiji.api.common.model.SendMessageResponse
-import com.momiji.api.gateway.outbound.GatewayMessageSenderController
+import com.momiji.api.gateway.outbound.GatewayMessageSenderClient
 import com.momiji.api.gateway.outbound.model.FrontendNamesResponse
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
 import org.springframework.stereotype.Service
 
 @Service
 class GatewayService(
-    private val gatewayMessageSenderController: GatewayMessageSenderController,
+    private val gatewayMessageSenderClient: GatewayMessageSenderClient,
 ) {
 
     fun sendText(
@@ -19,7 +19,7 @@ class GatewayService(
         chatId: String,
         replyToMessageId: String? = null,
     ): SendMessageResponse {
-        return gatewayMessageSenderController.sendText(
+        return gatewayMessageSenderClient.sendText(
             SendTextMessageRequest(
                 frontend = frontend,
                 text = text,
@@ -33,17 +33,17 @@ class GatewayService(
         frontend: String,
         chatId: String
     ): BaseResponse {
-        return gatewayMessageSenderController.sendTypingAction(frontend = frontend, chatId = chatId)
+        return gatewayMessageSenderClient.sendTypingAction(frontend = frontend, chatId = chatId)
     }
 
     fun getFrontendNames(): FrontendNamesResponse {
-        return gatewayMessageSenderController.getFrontendNames()
+        return gatewayMessageSenderClient.getFrontendNames()
     }
 
     fun getChatAdmins(
         chatId: String,
         frontend: String
     ): ChatAdminsResponse {
-        return gatewayMessageSenderController.getChatAdmins(chatId = chatId, frontend = frontend)
+        return gatewayMessageSenderClient.getChatAdmins(chatId = chatId, frontend = frontend)
     }
 }

@@ -1,10 +1,10 @@
 package com.momiji.bot.service.neuro
 
 import com.momiji.api.common.model.ResponseStatus
-import com.momiji.api.gateway.outbound.GatewayMessageSenderController
+import com.momiji.api.gateway.outbound.GatewayMessageSenderClient
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
-import com.momiji.api.neural.text.TextGenerationController
-import com.momiji.api.neural.text.model.*
+import com.momiji.api.neural.generation.text.TextGenerationClient
+import com.momiji.api.neural.generation.text.model.*
 import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
@@ -15,18 +15,18 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import com.momiji.api.neural.text.model.Message as TextGenerationMessage
+import com.momiji.api.neural.generation.text.model.Message as TextGenerationMessage
 
 
 @Service
 class NeuroMessageReceiver(
     private val messageWithUserRepository: MessageWithUserRepository,
     private val chatGenerationConfigRepository: ChatGenerationConfigRepository,
-    private val gatewayMessageSenderController: GatewayMessageSenderController,
+    private val gatewayMessageSenderController: GatewayMessageSenderClient,
     private val chatConfigService: ChatConfigService,
     @Value("\${ro-bot.context-size:10}")
     private val contextSize: Int,
-    private val textGenerationController: TextGenerationController,
+    private val textGenerationController: TextGenerationClient,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
@@ -131,7 +131,7 @@ class NeuroMessageReceiver(
 
     private fun getGeneratedMessages(promptId: UUID): List<TextGenerationMessage> {
         val response =
-            textGenerationController.getGeneratedFromHistory(promptId = promptId, async = false)
+            textGenerationController.getGeneratedFromHistory(taskId = promptId, async = false)
 
         return when (response.status) {
             ResponseStatus.OK -> {

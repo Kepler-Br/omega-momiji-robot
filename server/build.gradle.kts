@@ -18,6 +18,9 @@ dependencies {
     implementation("org.zalando:logbook-spring-boot-starter")
     implementation(kotlin("stdlib-jdk8"))
 
+    implementation("software.amazon.awssdk:apache-client")
+    implementation("software.amazon.awssdk:s3")
+
     implementation("com.momiji.api:gateway-outbound-client-starter")
     implementation("com.momiji.api:neural-text-client-starter")
     implementation("com.momiji.api:omega-momiji-api")

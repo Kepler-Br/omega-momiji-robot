@@ -23,19 +23,27 @@ subprojects {
         imports {
             val springCloudVersion: String by project
             val logbookVersion: String by project
+            val awspringCloudVersion: String by project
 
             mavenBom("org.zalando:logbook-bom:$logbookVersion")
-            mavenBom("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
+            mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
+            mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:$awspringCloudVersion")
             mavenBom(SpringBootPlugin.BOM_COORDINATES)
         }
 
         dependencies {
             val apiVersion: String by project
+            val awssdkVersion: String by project
 
             dependencySet("com.momiji.api:$apiVersion") {
                 entry("omega-momiji-api")
                 entry("gateway-outbound-client-starter")
                 entry("neural-text-client-starter")
+            }
+
+            dependencySet("software.amazon.awssdk:$awssdkVersion") {
+                entry("apache-client")
+                entry("s3")
             }
         }
     }

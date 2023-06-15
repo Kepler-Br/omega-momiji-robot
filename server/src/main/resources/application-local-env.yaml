@@ -13,9 +13,15 @@ momiji:
       stub: false
       url: http://localhost:8091
     neural:
-      text:
+      text-generation:
         stub: false
         url: http://localhost:8090
+      speech-caption:
+        stub: true
+        url:  http://localhost:8092
+      image-caption:
+        stub: true
+        url: http://localhost:8093
 
 logging:
   level:
@@ -29,3 +35,12 @@ ro-bot:
     frontend:
       telegram:
         - me
+
+s3:
+  region: us-east-1
+  host: localhost
+  port: 9000
+  path: /
+  scheme: http
+  access-key-id: accessKey1
+  secret-access-key: verySecretKey1

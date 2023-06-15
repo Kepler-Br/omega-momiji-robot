@@ -16,7 +16,8 @@ data class DispatchedMessageEvent(
 data class DispatchedMessage(
     var id: Long? = null,
     var text: String? = null,
-    var mediaLink: String? = null,
+    var s3Bucket: String? = null,
+    var s3Key: String? = null,
     var mediaType: MediaType? = null,
     var user: UserEntity,
     var replyTo: DispatchedRepliedMessage? = null,
@@ -26,7 +27,8 @@ data class DispatchedMessage(
 data class DispatchedRepliedMessage(
     var id: Long? = null,
     var text: String? = null,
-    var mediaLink: String? = null,
+    var s3Bucket: String? = null,
+    var s3Key: String? = null,
     var mediaType: MediaType? = null,
     var user: UserEntity,
     var replyToNativeId: String? = null,

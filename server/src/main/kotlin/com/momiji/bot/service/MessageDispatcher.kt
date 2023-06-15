@@ -83,7 +83,8 @@ class MessageDispatcher(
                 DispatchedRepliedMessage(
                     id = replyTo.id,
                     text = replyTo.text,
-                    mediaLink = replyTo.mediaLink,
+                    s3Bucket = replyTo.s3bucket,
+                    s3Key = replyTo.s3key,
                     mediaType = replyTo.mediaType,
                     user = replyToUser,
                     replyToNativeId = replyTo.replyToMessageNativeId,
@@ -102,7 +103,8 @@ class MessageDispatcher(
             message = DispatchedMessage(
                 id = message.id,
                 text = message.text,
-                mediaLink = message.mediaLink,
+                s3Bucket = message.s3bucket,
+                s3Key = message.s3key,
                 mediaType = message.mediaType,
                 user = user,
                 replyTo = replyToMessage,

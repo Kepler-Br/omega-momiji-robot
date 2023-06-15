@@ -1,6 +1,6 @@
 package com.momiji.bot.controller
 
-import com.momiji.api.bot.BotReceiveMessageController
+import com.momiji.api.bot.BotReceiveMessageClient
 import com.momiji.api.bot.model.NewMessageRequest
 import com.momiji.api.common.model.ResponseStatus
 import com.momiji.api.common.model.SimpleResponse
@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class DefaultBotReceiveMessageController(
+class DefaultBotReceiveMessageClient(
 //    private val messageProcessorService: MessageProcessorService,
     private val messageDispatcher: MessageDispatcher,
-) : BotReceiveMessageController {
+) : BotReceiveMessageClient {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
     override fun newMessage(@RequestBody request: NewMessageRequest): SimpleResponse {
-        logger.debug("New message: $request")
+        logger.debug("New message: {}", request)
 
         messageDispatcher.process(request)
 
