@@ -5,10 +5,10 @@ import com.momiji.api.gateway.outbound.GatewayMessageSenderClient
 import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
 import com.momiji.api.neural.generation.text.TextGenerationClient
 import com.momiji.api.neural.generation.text.model.*
-import com.momiji.bot.repository.ChatGenerationConfigRepository
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
 import com.momiji.bot.service.data.DispatchedMessageEvent
+import com.momiji.bot.service.neuro.mapper.ToMessageMapperService
 import java.util.*
 import kotlin.random.Random
 import org.slf4j.Logger
@@ -21,14 +21,24 @@ import com.momiji.api.neural.generation.text.model.Message as TextGenerationMess
 @Service
 class NeuroMessageReceiver(
     private val messageWithUserRepository: MessageWithUserRepository,
-    private val chatGenerationConfigRepository: ChatGenerationConfigRepository,
-    private val gatewayMessageSenderController: GatewayMessageSenderClient,
+    private val gatewayMessageSenderClient: GatewayMessageSenderClient,
     private val chatConfigService: ChatConfigService,
     @Value("\${ro-bot.context-size:10}")
     private val contextSize: Int,
-    private val textGenerationController: TextGenerationClient,
+    private val textGenerationClient: TextGenerationClient,
+    private val toMessageMapperService: ToMessageMapperService,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
+
+    private fun maskFullname(userNativeId: String, original: String, target: String): String {
+        return if (userNativeId == "SELF") {
+            target
+        } else if (original == target) {
+            original.hashCode().toString(16).trimStart('-')
+        } else {
+            original
+        }
+    }
 
     fun process(dispatchedMessageEvent: DispatchedMessageEvent) {
         val chatNativeId = dispatchedMessageEvent.chat.nativeId
@@ -55,43 +65,38 @@ class NeuroMessageReceiver(
             limit = contextSize,
         ).reversed()
 
-        val maskedMessages = messages.map {
-            val fullname = if (it.userNativeId == "SELF") {
-                chatConfig.username
-            } else if (it.fullname == chatConfig.username) {
-                it.fullname.hashCode().toString(16).trimStart('-')
-            } else {
-                it.fullname
+        val processedMessages = messages.map {
+            it.apply {
+                this.fullname = maskFullname(it.userNativeId, it.fullname, chatConfig.username)
             }
 
-            TextGenerationMessage(
-                messageType = MessageType.TEXT,
-                // TODO: Ideally, should never be null.
-                content = it.text ?: "Unknown",
-                author = fullname,
-                messageId = it.nativeId,
-                replyToMessageId = it.replyToMessageNativeId,
-            )
+            toMessageMapperService.map(it)
         }
 
-        gatewayMessageSenderController.sendTypingAction(
+        gatewayMessageSenderClient.sendTypingAction(
             frontend = frontend,
             chatId = chatNativeId
         )
 
-        val generatedMessages = generateMessage(messages = maskedMessages, chatConfig = chatConfig)
+        val generatedMessages = generateMessage(processedMessages, chatConfig)
         val filteredMessages = filterFirstByAuthor(generatedMessages, chatConfig.username)
 
         for (message in filteredMessages) {
-            gatewayMessageSenderController.sendTypingAction(
+            // TODO: Make possible to send images and voice
+            if (message.messageType != MessageType.TEXT || message.content == null) {
+                logger.warn("Skipping a message because it is not a TEXT(actual value is${message.messageType}) or content is null")
+                continue
+            }
+
+            gatewayMessageSenderClient.sendTypingAction(
                 frontend = frontend,
                 chatId = chatNativeId
             )
 
-            gatewayMessageSenderController.sendText(
+            gatewayMessageSenderClient.sendText(
                 request = SendTextMessageRequest(
                     frontend = frontend,
-                    text = message.content,
+                    text = message.content!!,
                     chatId = chatNativeId,
                     replyToMessageId = message.replyToMessageId,
                 )
@@ -117,7 +122,7 @@ class NeuroMessageReceiver(
             badWords = listOf(" [", "[", "@", " @"),
         )
 
-        val response = textGenerationController.requestGenerationFromHistory(
+        val response = textGenerationClient.requestGenerationFromHistory(
             content = HistoryRequest(
                 messageType = MessageType.TEXT,
                 history = messages,
@@ -131,7 +136,7 @@ class NeuroMessageReceiver(
 
     private fun getGeneratedMessages(promptId: UUID): List<TextGenerationMessage> {
         val response =
-            textGenerationController.getGeneratedFromHistory(taskId = promptId, async = false)
+            textGenerationClient.getGeneratedFromHistory(taskId = promptId, async = false)
 
         return when (response.status) {
             ResponseStatus.OK -> {

@@ -1,4 +1,4 @@
-package com.momiji.bot.service.neuro.mapper
+package com.momiji.bot.service.neuro.mapper.exception
 
 class ToMessageMapperException(message: String?, cause: Throwable?) :
     RuntimeException(message, cause) {

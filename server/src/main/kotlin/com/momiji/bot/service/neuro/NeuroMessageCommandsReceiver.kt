@@ -1,9 +1,9 @@
 package com.momiji.bot.service.neuro
 
+import com.momiji.api.gateway.outbound.GatewayMessageSenderService
 import com.momiji.bot.config.SuperUserConfigurationProperties
 import com.momiji.bot.repository.entity.ChatEntity
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
-import com.momiji.bot.service.GatewayService
 import com.momiji.bot.service.data.DispatchedMessage
 import com.momiji.bot.service.data.DispatchedMessageEvent
 import com.momiji.bot.service.data.MessageCommand
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service
 
 @Service
 class NeuroMessageCommandsReceiver(
-    private val gatewayService: GatewayService,
+    private val gatewayMessageSenderService: GatewayMessageSenderService,
     private val chatConfigService: ChatConfigService,
     private var superUserConfigurationProperties: SuperUserConfigurationProperties,
 ) {
@@ -53,7 +53,7 @@ class NeuroMessageCommandsReceiver(
         )
 
         if (!isPermitted) {
-            gatewayService.sendText(
+            gatewayMessageSenderService.sendText(
                 frontend = frontend,
                 text = "Ты не существуешь",
                 chatId = chat.nativeId,
@@ -133,12 +133,12 @@ class NeuroMessageCommandsReceiver(
             return true
         }
 
-        val admins = gatewayService.getChatAdmins(
+        val adminIds = gatewayMessageSenderService.getChatAdmins(
             chatId = chatNativeId,
             frontend = frontend
         )
 
-        return userNativeId in admins.adminIds
+        return userNativeId in adminIds
     }
 
     private fun whois(
@@ -149,7 +149,7 @@ class NeuroMessageCommandsReceiver(
         val config =
             chatConfigService.getChatConfig(frontend = frontend, chatNativeId = chat.nativeId)
 
-        gatewayService.sendText(
+        gatewayMessageSenderService.sendText(
             frontend = frontend,
             text = "Я ${config.username}",
             chatId = chat.nativeId,
@@ -167,7 +167,7 @@ class NeuroMessageCommandsReceiver(
 
         chatConfigService.save(config)
 
-        gatewayService.sendText(
+        gatewayMessageSenderService.sendText(
             frontend = frontend,
             text = getParamsHelp(config),
             chatId = chat.nativeId,
@@ -186,10 +186,10 @@ class NeuroMessageCommandsReceiver(
         try {
             setter(config)
         } catch (_: RuntimeException) {
-            gatewayService.sendText(
+            gatewayMessageSenderService.sendText(
                 frontend = frontend,
                 text = onExceptionMessage,
-                chatId = chat.nativeId
+                chatId = chat.nativeId,
             )
 
             return
@@ -197,7 +197,7 @@ class NeuroMessageCommandsReceiver(
 
         chatConfigService.save(config)
 
-        gatewayService.sendText(
+        gatewayMessageSenderService.sendText(
             frontend = frontend,
             text = getParamsHelp(config),
             chatId = chat.nativeId,
@@ -216,7 +216,7 @@ class NeuroMessageCommandsReceiver(
 
         chatConfigService.save(config)
 
-        gatewayService.sendText(
+        gatewayMessageSenderService.sendText(
             frontend = frontend,
             text = "Теперь я ${config.username}",
             chatId = chat.nativeId,
