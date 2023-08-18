@@ -40,12 +40,13 @@ class ToMessageMapperService(
 
         val mapper = mappers[source.mediaType]
 
-        // Have a mapper for media type
+        // We have a mapper for media type
         if (mapper != null) {
             return mapper.map(source)
         }
 
-        // Unmappable mediaType
+        // We don't have a mapper for this media type.
+        // Processing with default message with mediaType and without content.
         val mediaType = when(source.mediaType) {
             MediaType.STICKER -> MessageType.IMAGE
             MediaType.AUDIO -> MessageType.AUDIO

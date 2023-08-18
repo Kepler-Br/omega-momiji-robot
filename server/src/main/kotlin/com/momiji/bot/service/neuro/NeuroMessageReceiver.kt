@@ -1,15 +1,18 @@
 package com.momiji.bot.service.neuro
 
 import com.momiji.api.common.model.ResponseStatus
-import com.momiji.api.gateway.outbound.GatewayMessageSenderClient
-import com.momiji.api.gateway.outbound.model.SendTextMessageRequest
+import com.momiji.api.gateway.outbound.GatewayMessageSenderService
+import com.momiji.api.neural.generation.image.ImageGenerationClientService
 import com.momiji.api.neural.generation.text.TextGenerationClient
-import com.momiji.api.neural.generation.text.model.*
+import com.momiji.api.neural.generation.text.model.GenerationParams
+import com.momiji.api.neural.generation.text.model.HistoryRequest
+import com.momiji.api.neural.generation.text.model.MessageType
 import com.momiji.bot.repository.MessageWithUserRepository
 import com.momiji.bot.repository.entity.ChatGenerationConfigEntity
 import com.momiji.bot.service.data.DispatchedMessageEvent
 import com.momiji.bot.service.neuro.mapper.ToMessageMapperService
-import java.util.*
+import feign.FeignException
+import java.util.UUID
 import kotlin.random.Random
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -21,7 +24,8 @@ import com.momiji.api.neural.generation.text.model.Message as TextGenerationMess
 @Service
 class NeuroMessageReceiver(
     private val messageWithUserRepository: MessageWithUserRepository,
-    private val gatewayMessageSenderClient: GatewayMessageSenderClient,
+    private val imageGenerationClientService: ImageGenerationClientService,
+    private val gatewayMessageSenderService: GatewayMessageSenderService,
     private val chatConfigService: ChatConfigService,
     @Value("\${ro-bot.context-size:10}")
     private val contextSize: Int,
@@ -30,13 +34,17 @@ class NeuroMessageReceiver(
 ) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
-    private fun maskFullname(userNativeId: String, original: String, target: String): String {
+    private fun maskFullname(
+        userNativeId: String,
+        originalName: String,
+        nameToMask: String
+    ): String {
         return if (userNativeId == "SELF") {
-            target
-        } else if (original == target) {
-            original.hashCode().toString(16).trimStart('-')
+            nameToMask
+        } else if (originalName == nameToMask) {
+            originalName.hashCode().toString(16).trimStart('-')
         } else {
-            original
+            originalName
         }
     }
 
@@ -59,21 +67,21 @@ class NeuroMessageReceiver(
             return
         }
 
-        val messages = messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
-            frontend = frontend,
-            chatNativeId = chatNativeId,
-            limit = contextSize,
-        ).reversed()
-
-        val processedMessages = messages.map {
-            it.apply {
-                this.fullname = maskFullname(it.userNativeId, it.fullname, chatConfig.username)
+        val processedMessages =
+            messageWithUserRepository.getByFrontendAndChatNativeIdOrderByIdDescLimit(
+                frontend = frontend,
+                chatNativeId = chatNativeId,
+                limit = contextSize,
+            ).reversed().map {
+                toMessageMapperService.map(
+                    it.apply {
+                        this.fullname =
+                            maskFullname(it.userNativeId, it.fullname, chatConfig.username)
+                    }
+                )
             }
 
-            toMessageMapperService.map(it)
-        }
-
-        gatewayMessageSenderClient.sendTypingAction(
+        gatewayMessageSenderService.sendTypingAction(
             frontend = frontend,
             chatId = chatNativeId
         )
@@ -83,23 +91,88 @@ class NeuroMessageReceiver(
 
         for (message in filteredMessages) {
             // TODO: Make possible to send images and voice
-            if (message.messageType != MessageType.TEXT || message.content == null) {
-                logger.warn("Skipping a message because it is not a TEXT(actual value is${message.messageType}) or content is null")
-                continue
+            when (message.messageType) {
+                MessageType.TEXT -> {
+                    sentTextMessage(message = message, frontend = frontend, chatNativeId = chatNativeId)
+                }
+                MessageType.IMAGE -> {
+                    sendImageMessage(
+                        message = message,
+                        frontend = frontend,
+                        chatNativeId = chatNativeId
+                    )
+                }
+                else -> {
+                    sendUnprocessableMessage(
+                        message = message,
+                        frontend = frontend,
+                        chatNativeId = chatNativeId
+                    )
+                }
             }
+        }
+    }
 
-            gatewayMessageSenderClient.sendTypingAction(
+    private fun sendUnprocessableMessage(
+        message: TextGenerationMessage,
+        frontend: String,
+        chatNativeId: String
+    ) {
+        gatewayMessageSenderService.sendTextWithTyping(
+            frontend = frontend,
+            text = "${message.messageType}: ${message.content!!}",
+            chatId = chatNativeId,
+            replyToMessageId = message.replyToMessageId,
+        )
+    }
+
+    private fun sendImageMessage(
+        message: TextGenerationMessage,
+        frontend: String,
+        chatNativeId: String
+    ) {
+        if (message.content == null) {
+            gatewayMessageSenderService.sendTextWithTyping(
                 frontend = frontend,
-                chatId = chatNativeId
+                text = "[IMAGE]",
+                chatId = chatNativeId,
+                replyToMessageId = message.replyToMessageId,
             )
+            return
+        }
+        try {
+            gatewayMessageSenderService.sendImage(
+                frontend = frontend,
+                data = imageGenerationClientService.requestGenerationBlocking(
+                    prompt = message.content!!
+                ),
+                chatId = chatNativeId,
+                replyToMessageId = message.replyToMessageId
+            )
+        } catch (ex: FeignException.FeignClientException) {
+            logger.error(
+                "Exception while sending image generation request. Sending text message",
+                ex
+            )
+            sendUnprocessableMessage(
+                message = message, frontend = frontend, chatNativeId = chatNativeId
+            )
+        }
+    }
 
-            gatewayMessageSenderClient.sendText(
-                request = SendTextMessageRequest(
-                    frontend = frontend,
-                    text = message.content!!,
-                    chatId = chatNativeId,
-                    replyToMessageId = message.replyToMessageId,
-                )
+    private fun sentTextMessage(
+        message: TextGenerationMessage,
+        frontend: String,
+        chatNativeId: String
+    ) {
+        if (message.content == null) {
+            logger.warn("No content produced for text message")
+        } else {
+            gatewayMessageSenderService.sendTextWithTyping(
+                frontend = frontend,
+                text = message.content!!,
+                chatId = chatNativeId,
+                replyToMessageId = message.replyToMessageId,
             )
         }
     }
@@ -124,7 +197,6 @@ class NeuroMessageReceiver(
 
         val response = textGenerationClient.requestGenerationFromHistory(
             content = HistoryRequest(
-                messageType = MessageType.TEXT,
                 history = messages,
                 generationParams = params,
                 promptAuthor = chatConfig.username,

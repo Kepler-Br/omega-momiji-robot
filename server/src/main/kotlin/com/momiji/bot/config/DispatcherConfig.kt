@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class DispatcherConfig(
-    val neuroMessageProcessorService: NeuroMessageReceiver,
+    val neuroMessageReceiver: NeuroMessageReceiver,
     val neuroMessageCommandsReceiver: NeuroMessageCommandsReceiver,
     val messageDispatcher: MessageDispatcher,
 ) {
@@ -20,7 +20,7 @@ class DispatcherConfig(
     fun post() {
         messageDispatcher.register(
             listOf(NotACommand(), NotAnUpdatedMessage()),
-            neuroMessageProcessorService::process
+            neuroMessageReceiver::process
         )
 
         messageDispatcher.register(
